@@ -1,0 +1,71 @@
+name: Discord Webhook Full Debug
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  debug-discord-webhook:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print author and comment details
+        run: |
+          echo "Author login: ${{ github.event.comment.user.login }}"
+          echo "Comment body: ${{ github.event.comment.body }}"
+          echo "Comment URL: ${{ github.event.comment.html_url }}"
+
+      - name: Check if webhook secret is loaded
+        run: |
+          if [ -z "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            echo "❌ DISCORD_WEBHOOK_URL secret is missing"
+            exit 1
+          else
+            echo "✅ DISCORD_WEBHOOK_URL secret is loaded"
+          fi
+
+      - name: Test basic Discord webhook call
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          echo "Sending simple test message to Discord..."
+          response=$(curl -s -w "%{http_code}" -o /dev/null \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d '{"content": "✅ GitHub Actions Discord Webhook Test: Simple Message"}' \
+            "$DISCORD_WEBHOOK_URL")
+          echo "Discord response code: $response"
+
+          if [ "$response" -ne 204 ]; then
+            echo "❌ Discord webhook call failed with HTTP code: $response"
+            exit 1
+          else
+            echo "✅ Discord webhook call succeeded"
+          fi
+
+      - name: Send actual PR comment message (only if author is Jammanb0)
+        if: github.event.comment.user.login == 'Jammanb0'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          COMMENT: ${{ github.event.comment.body }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+        run: |
+          payload=$(jq -n \
+            --arg content "Jammanb0님이 PR에 코멘트를 작성했습니다:\n\"$COMMENT\"\n👉 링크: $COMMENT_URL" \
+            '{content: $content}')
+          
+          echo "Payload to be sent:"
+          echo "$payload"
+          
+          response=$(curl -s -w "%{http_code}" -o /dev/null \
+            -H "Content-Type: application/json" \
+            -X POST -d "$payload" "$DISCORD_WEBHOOK_URL")
+          
+          echo "Discord response code for actual message: $response"
+
+          if [ "$response" -ne 204 ]; then
+            echo "❌ Discord webhook failed for actual message"
+            exit 1
+          else
+            echo "✅ Actual message sent successfully"
+          fi
