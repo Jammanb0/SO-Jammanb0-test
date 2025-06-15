@@ -25,7 +25,7 @@ jobs:
             링크: ${{ github.event.pull_request.html_url }}
 
       - name: Comment Notification
-        if: (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') && contains(['Jammanb0'], github.event.comment.user.login)
+        if: github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' && github.event.comment.user.login == 'Jammanb0'
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
