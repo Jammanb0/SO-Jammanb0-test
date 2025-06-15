@@ -21,11 +21,9 @@ jobs:
               pull_number: context.issue.number
             });
 
-            return {
-              pr_title: pr.data.title,
-              pr_author: pr.data.user.login,
-              pr_url: pr.data.html_url
-            };
+            core.setOutput("pr_title", pr.data.title);
+            core.setOutput("pr_author", pr.data.user.login);
+            core.setOutput("pr_url", pr.data.html_url);
       
       - name: Send Discord notification (only for Jammanb0)
         if: github.event.comment.user.login == 'Jammanb0'
@@ -33,9 +31,9 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           COMMENT: ${{ github.event.comment.body }}
           COMMENT_URL: ${{ github.event.comment.html_url }}
-          PR_TITLE: ${{ steps.pr-info.outputs.result.pr_title }}
-          PR_AUTHOR: ${{ steps.pr-info.outputs.result.pr_author }}
-          PR_URL: ${{ steps.pr-info.outputs.result.pr_url }}
+          PR_TITLE: ${{ steps.pr-info.outputs.pr_title }}
+          PR_AUTHOR: ${{ steps.pr-info.outputs.pr_author }}
+          PR_URL: ${{ steps.pr-info.outputs.pr_url }}
         run: |
           echo "Preparing embed payload for Discord..."
 
@@ -44,8 +42,8 @@ jobs:
             --arg content "" \
             --arg title "Jammanb0님이 PR에 코멘트를 작성했습니다" \
             --arg description "\"$COMMENT\"" \
-            --arg pr_title "PR 제목: $PR_TITLE" \
-            --arg pr_author "PR 작성자: $PR_AUTHOR" \
+            --arg pr_title "$PR_TITLE" \
+            --arg pr_author "$PR_AUTHOR" \
             --arg pr_url "$PR_URL" \
             --arg comment_url "$COMMENT_URL" \
             '{
