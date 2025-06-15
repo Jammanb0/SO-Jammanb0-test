@@ -1,4 +1,4 @@
-name: Notify Discord on PR Comment by Jammanb0 (Embed Version)
+name: PR Comment Discord Notifier
 
 on:
   issue_comment:
@@ -9,7 +9,24 @@ jobs:
     if: github.event.issue.pull_request != null
     runs-on: ubuntu-latest
 
+    env:
+      ALLOWED_USERS: "Jammanb0,ssoogit,다른사람ID"
+
     steps:
+      - name: Check if author is in allowed list
+        id: author-check
+        run: |
+          AUTHOR="${{ github.event.comment.user.login }}"
+          echo "Author: $AUTHOR"
+          IFS=',' read -ra USERS <<< "$ALLOWED_USERS"
+          for user in "${USERS[@]}"; do
+            if [[ "$AUTHOR" == "$user" ]]; then
+              echo "MATCH=true" >> $GITHUB_ENV
+              exit 0
+            fi
+          done
+          echo "MATCH=false" >> $GITHUB_ENV
+
       - name: Fetch PR details
         id: pr-info
         uses: actions/github-script@v7
@@ -24,9 +41,9 @@ jobs:
             core.setOutput("pr_title", pr.data.title);
             core.setOutput("pr_author", pr.data.user.login);
             core.setOutput("pr_url", pr.data.html_url);
-      
-      - name: Send Discord notification (only for Jammanb0)
-        if: github.event.comment.user.login == 'Jammanb0'
+
+      - name: Send Discord notification
+        if: env.MATCH == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           COMMENT: ${{ github.event.comment.body }}
@@ -40,7 +57,7 @@ jobs:
           payload=$(jq -n \
             --arg username "GitHub PR Comment Notifier" \
             --arg content "" \
-            --arg title "Jammanb0님이 PR에 코멘트를 작성했습니다" \
+            --arg title "PR에 코멘트가 작성되었습니다" \
             --arg description "\"$COMMENT\"" \
             --arg pr_title "$PR_TITLE" \
             --arg pr_author "$PR_AUTHOR" \
