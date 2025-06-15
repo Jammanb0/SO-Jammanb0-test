@@ -1,0 +1,82 @@
+name: Notify Discord on PR Comment by Jammanb0 (Embed Version)
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  notify-discord:
+    if: github.event.issue.pull_request != null
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Fetch PR details
+        id: pr-info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            return {
+              pr_title: pr.data.title,
+              pr_author: pr.data.user.login,
+              pr_url: pr.data.html_url
+            };
+      
+      - name: Send Discord notification (only for Jammanb0)
+        if: github.event.comment.user.login == 'Jammanb0'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          COMMENT: ${{ github.event.comment.body }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          PR_TITLE: ${{ steps.pr-info.outputs.result.pr_title }}
+          PR_AUTHOR: ${{ steps.pr-info.outputs.result.pr_author }}
+          PR_URL: ${{ steps.pr-info.outputs.result.pr_url }}
+        run: |
+          echo "Preparing embed payload for Discord..."
+
+          payload=$(jq -n \
+            --arg username "GitHub PR Comment Notifier" \
+            --arg content "" \
+            --arg title "Jammanb0님이 PR에 코멘트를 작성했습니다" \
+            --arg description "\"$COMMENT\"" \
+            --arg pr_title "PR 제목: $PR_TITLE" \
+            --arg pr_author "PR 작성자: $PR_AUTHOR" \
+            --arg pr_url "$PR_URL" \
+            --arg comment_url "$COMMENT_URL" \
+            '{
+              username: $username,
+              content: $content,
+              embeds: [
+                {
+                  title: $title,
+                  description: $description,
+                  fields: [
+                    { name: "PR 제목", value: $pr_title, inline: false },
+                    { name: "PR 작성자", value: $pr_author, inline: false },
+                    { name: "코멘트 URL", value: $comment_url, inline: false }
+                  ],
+                  url: $pr_url,
+                  color: 5814783
+                }
+              ]
+            }')
+
+          echo "$payload"
+
+          response=$(curl -s -w "%{http_code}" -o /dev/null \
+            -H "Content-Type: application/json" \
+            -X POST -d "$payload" "$DISCORD_WEBHOOK_URL")
+
+          echo "Discord response code: $response"
+
+          if [ "$response" -ne 204 ]; then
+            echo "❌ Discord webhook failed"
+            exit 1
+          else
+            echo "✅ Discord embed message sent successfully"
+          fi
