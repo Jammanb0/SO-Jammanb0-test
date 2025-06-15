@@ -1,41 +1,25 @@
-name: Notify Discord on PR Comment by Jammanb0
+name: Discord Debug Test
 
 on:
   issue_comment:
     types: [created]
 
 jobs:
-  notify-discord:
-    if: github.event.issue.pull_request != null
+  test-discord:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Show author for debugging
+      - name: Dump event payload
         run: |
-          echo "Author login is: ${{ github.event.comment.user.login }}"
+          echo "Author login: ${{ github.event.comment.user.login }}"
+          echo "Comment body: ${{ github.event.comment.body }}"
+          echo "Comment url: ${{ github.event.comment.html_url }}"
 
-      - name: Send Discord Notification
-        if: github.event.comment.user.login == 'Jammanb0'
+      - name: Send simple Discord test message
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          COMMENT: ${{ github.event.comment.body }}
-          COMMENT_URL: ${{ github.event.comment.html_url }}
         run: |
-          echo "Preparing payload..."
-          payload=$(jq -n \
-            --arg content "Jammanb0님이 PR에 코멘트를 작성했습니다:\n\"$COMMENT\"\n👉 링크: $COMMENT_URL" \
-            '{content: $content}')
-          
-          echo "Payload: $payload"
-          
-          http_code=$(curl -s -o response.txt -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -X POST -d "$payload" "$DISCORD_WEBHOOK_URL")
-
-          echo "Discord response code: $http_code"
-          cat response.txt
-
-          if [ "$http_code" -ne 204 ]; then
-            echo "Failed to send message to Discord"
-            exit 1
-          fi
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d '{"content": "✅ GitHub Action에서 Discord Webhook 호출 성공"}' \
+               "$DISCORD_WEBHOOK_URL"
