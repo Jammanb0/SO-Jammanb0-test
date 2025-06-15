@@ -1,37 +1,24 @@
-name: PR and Comment Discord Notification
+name: Notify Discord on PR Comment by Jammanb0
 
 on:
-  pull_request:
-    types: [opened, reopened]
   issue_comment:
-    types: [created]
-  pull_request_review_comment:
     types: [created]
 
 jobs:
-  notify:
+  notify-discord:
+    if: github.event.issue.pull_request != null
     runs-on: ubuntu-latest
-    steps:
-      - name: PR Created Notification
-        if: github.event_name == 'pull_request'
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        with:
-          args: |
-            🆕 새로운 PR이 생성되었습니다!
-            제목: ${{ github.event.pull_request.title }}
-            작성자: ${{ github.event.pull_request.user.login }}
-            링크: ${{ github.event.pull_request.html_url }}
 
-      - name: Comment Notification
-        if: github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' && github.event.comment.user.login == 'Jammanb0'
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        with:
-          args: |
-            💬 새로운 코멘트가 달렸습니다!
-            작성자: ${{ github.event.comment.user.login }}
-            내용: ${{ github.event.comment.body }}
-            링크: ${{ github.event.comment.html_url }}
+    steps:
+      - name: Check comment author
+        id: check_author
+        run: |
+          echo "AUTHOR=${{ github.event.comment.user.login }}" >> $GITHUB_ENV
+
+      - name: Send Discord Notification
+        if: env.AUTHOR == 'Jammanb0'
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"Jammanb0님이 PR에 코멘트를 작성했습니다: '${{ github.event.comment.body }}' (링크: ${{ github.event.comment.html_url }})\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
