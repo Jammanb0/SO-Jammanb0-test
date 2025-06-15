@@ -2,17 +2,16 @@ name: PR and Comment Discord Notification
 
 on:
   pull_request:
-    types: [opened, reopened]  # PR이 생성되거나 다시 열릴 때
+    types: [opened, reopened]
   issue_comment:
-    types: [created]  # PR이나 이슈에 코멘트가 달릴 때
+    types: [created]
   pull_request_review_comment:
-    types: [created]  # PR의 코드 라인에 코멘트가 달릴 때
+    types: [created]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      # PR 생성 알림
       - name: PR Created Notification
         if: github.event_name == 'pull_request'
         uses: Ilshidur/action-discord@master
@@ -25,11 +24,8 @@ jobs:
             작성자: ${{ github.event.pull_request.user.login }}
             링크: ${{ github.event.pull_request.html_url }}
 
-      # 특정 유저의 코멘트 알림
       - name: Comment Notification
-        if: |
-          (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
-          contains(['Jammanb0'], github.event.comment.user.login)  # 여기에 알림받을 유저명 지정
+        if: (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') && contains(['Jammanb0'], github.event.comment.user.login)
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
